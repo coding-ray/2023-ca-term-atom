@@ -1,0 +1,12 @@
+services:
+  all:
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    hostname: ${HOSTNAME}
+    build:
+      context: .
+      args:
+        UBUNTU_VERSION: ${UBUNTU_VERSION}
+        TIMEZONE: ${TIMEZONE}
+        USERNAME: ${USERNAME}
+        PASSWORD: ${PASSWORD}

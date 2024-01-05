@@ -1,0 +1,10 @@
+# COPY this file as ".env" in the current directory before `make start`
+# DON'T add ".env" to the version control system
+
+UBUNTU_VERSION=jammy-20231211.1
+IMAGE_NAME=ca-term-ubuntu
+CONTAINER_NAME=ca-term-ubuntu-2
+HOSTNAME=ca-term-ubuntu
+TIMEZONE=Asia/Taipei
+USERNAME=ray
+PASSWORD=0
