@@ -1,23 +1,14 @@
-# config part 1/2
+# config part 1/4
 ARG UBUNTU_VERSION=jammy-20231211.1
 
-FROM ubuntu:${UBUNTU_VERSION} as base
+FROM ubuntu:${UBUNTU_VERSION} as verilator
 
-# config part 2/2
+# config part 2/4
 ARG TIMEZONE="Asia/Taipei"
-ARG USERNAME=ray
-ARG PASSWORD=0
 # recommended: stable (officially recommended branch), v5.020 (successfully built)
 ARG VERILATOR_CHECKOUT="v5.020"
-# recommended: master (officially recommended branch), 2023.12.20 (successfully built)
-ARG TOOLCHAIN_CHECKOUT="2023.12.20"
-# recommended: main (officially recommended branch), f0d15fc (successfully built)
-ARG ATOM_CHECKOUT="f0d15fc"
 
-ARG HOME_DIR="/home/${USERNAME}"
 ARG VERILATOR_INSTALL_PATH="/opt/verilator"
-ARG TOOLCHAIN_INSTALL_DIR="/opt/riscv-gnu-toolchain"
-ARG ATOM_DIR="${HOME_DIR}/riscv-atom"
 
 # update apt index
 RUN apt -qq update
@@ -35,7 +26,27 @@ RUN echo "Verilator" && \
     make -j `nproc` && \
     make test && \
     make install && \
+    echo "export PATH=\"${VERILATOR_INSTALL_PATH}/bin:\$PATH\"" >> "/bashrc_addition.txt" && \
     rm -rf /tmp/verilator
+
+FROM ubuntu:${UBUNTU_VERSION} as toolchain
+
+# config part 3/4
+# recommended: master (officially recommended branch), 2023.12.20 (successfully built)
+ARG TOOLCHAIN_CHECKOUT="2023.12.20"
+
+ARG TOOLCHAIN_INSTALL_DIR="/opt/riscv-gnu-toolchain"
+
+SHELL ["/bin/bash", "-c"]
+
+# update apt index
+RUN apt -qq update
+
+# set up the time zone (since RISC-V GNU toolchain depends on tzdata)
+# (Toolchain <- gtkwave <- libtk8.6 <- libtcl8.6 <- tzdata)
+RUN ln -fs /usr/share/zoneinfo/${TIMEZONE} /etc/localtime && \
+    echo ${TIMEZONE} > /etc/timezone && \
+    apt -qq install -y tzdata
 
 # build RISC-V GNU toolchain
 RUN echo "RISC-V GNU toolchain" && \
@@ -43,20 +54,33 @@ RUN echo "RISC-V GNU toolchain" && \
         curl flex gawk git gperf gtkwave libexpat-dev libglib2.0-dev libgmp-dev \
         libmpc-dev libmpfr-dev libreadline-dev libtool ninja-build patchutils python3 \
         python3-pip screen texinfo zlib1g-dev && \
-    git clone https://github.com/riscv/riscv-gnu-toolchain /tmp/toolchain && \
+    git clone --recursive https://github.com/riscv/riscv-gnu-toolchain /tmp/toolchain && \
     cd /tmp/toolchain && \
     git checkout ${TOOLCHAIN_CHECKOUT} && \
     mkdir -p "${TOOLCHAIN_INSTALL_DIR}" && \
-    ./configure --prefix="${TOOLCHAIN_INSTALL_DIR}" --enable-multilib && \
+    ./configure --prefix="${TOOLCHAIN_INSTALL_DIR}" --enable-multilib
+
+RUN cd /tmp/toolchain && \
     echo "Building RISC-V GNU toolchain and installing it to:\n  ${TOOLCHAIN_INSTALL_DIR}" && \
-    make -j `nproc` && \
-    echo "Installed RISC-V GNU toolchain to:\n  ${TOOLCHAIN_INSTALL_DIR}" && \
+    make -j `nproc`
+
+RUN echo "Installed RISC-V GNU toolchain to:\n  ${TOOLCHAIN_INSTALL_DIR}" && \
     echo "export PATH=\"${TOOLCHAIN_INSTALL_DIR}/bin:\$PATH\"" >> "/bashrc_addition.txt" && \
     rm -rf /tmp/toolchain
 
 
 
-FROM ubuntu:${UBUNTU_VERSION}
+FROM ubuntu:${UBUNTU_VERSION} as latest
+
+# config part 3/4
+ARG TIMEZONE="Asia/Taipei"
+ARG USERNAME=ray
+ARG PASSWORD=0
+# recommended: main (officially recommended branch), f0d15fc (successfully built)
+ARG ATOM_CHECKOUT="f0d15fc"
+
+ARG HOME_DIR="/home/${USERNAME}"
+ARG ATOM_DIR="${HOME_DIR}/riscv-atom"
 
 # unminimize the image, install `man`, and upgrade the entire system
 RUN yes | unminimize && \
@@ -74,11 +98,13 @@ RUN apt -qq install -y sudo && \
     touch "/root/.hushlogin" "${HOME_DIR}/.hushlogin" "${HOME_DIR}/.sudo_as_admin_successful" && \
     chown ${USERNAME}:${USERNAME} "${HOME_DIR}/.hushlogin" "${HOME_DIR}/.sudo_as_admin_successful"
 
-COPY --from=base --chown=${USERNAME}:${USERNAME} "/bashrc_addition.txt" "/bashrc_addition.txt"
-COPY --from=base --chown=${USERNAME}:${USERNAME} "/opt/*" "/opt/"
+COPY --from=verilator --chown=${USERNAME}:${USERNAME} "/bashrc_addition.txt" "/bashrc_addition-verilator.txt"
+COPY --from=toolchain --chown=${USERNAME}:${USERNAME} "/bashrc_addition.txt" "/bashrc_addition-toolchain.txt"
+COPY --from=verilator --chown=${USERNAME}:${USERNAME} "/opt/*" "/opt/"
+COPY --from=toolchain --chown=${USERNAME}:${USERNAME} "/opt/*" "/opt/"
 
-RUN cat "/bashrc_addition.txt" >> ${HOME_DIR}/.bashrc && \
-    rm "/bashrc_addition.txt"
+RUN cat "/bashrc_addition-verilator.txt" "/bashrc_addition-toolchain.txt" >> ${HOME_DIR}/.bashrc && \
+    rm /bashrc_addition*.txt
 
 # set up the time zone
 RUN ln -fs /usr/share/zoneinfo/${TIMEZONE} /etc/localtime && \
