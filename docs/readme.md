@@ -11,8 +11,6 @@ This document consists of the following sections.
 
 In this section, we built and installed RISC-V GNU toolchain and RISC-V Atom in a Docker container.
 
-To easily set up everything with Docker Compose and `make` installed, execute `make start` in `<project-root>/docker/`.
-
 
 ### Install Docker Engine
 
