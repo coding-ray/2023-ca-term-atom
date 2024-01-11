@@ -17,7 +17,7 @@
    Notes:
    * Use `q` or capital `ZZ` to quit the log; `j` or `↓` to scroll down; `k` or `↑` to scroll up in the log.
    * Enter `git log` simply to get a verbose log.
-1. Synchronize to the original repo from a forked one. Take [coding-ray/riscv-atom](https://github.com/coding-ray/riscv-atom), which is a fork from [saursin/riscv-atom](https://github.com/saursin/riscv-atom), as an example. For more info about the access token, please refer to [docs/branching-model.md](docs/branching-model.md#environment).
+1. Synchronize to the original repo from a forked one. Take [coding-ray/riscv-atom](https://github.com/coding-ray/riscv-atom), which is a fork from [saursin/riscv-atom](https://github.com/saursin/riscv-atom), as an example. For more info about the access token, please refer to [branching-model.md](branching-model.md#environment).
    ```shell
    # do it once
    https://oauth2:<access-token>@github.com/coding-ray/riscv-atom ~/arch-riscv-atom

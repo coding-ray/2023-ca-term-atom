@@ -140,7 +140,7 @@ Primary reference in this section: [A successful Git branching model » nvie.com
     git switch develop
     git checkout -b <branch-name>
     ```
-1. After making some changes, commit it [atomically](docs/commit-convention.md#atomic-commits). `-p` is to select only a part of a file to commit. `<file-or-dir-*>` means a file or a directory (folder), such as `.` for the current directory. Check [commit convention](docs/commit-convention.md) for a proper commit title and body.
+1. After making some changes, commit it [atomically](commit-convention.md#atomic-commits). `-p` is to select only a part of a file to commit. `<file-or-dir-*>` means a file or a directory (folder), such as `.` for the current directory. Check [commit convention](commit-convention.md) for a proper commit title and body.
     ```shell
     git add [-p] <file-or-dir-1> [<file-or-dir-2> ...]
     git commit [-m <commit-title>]
