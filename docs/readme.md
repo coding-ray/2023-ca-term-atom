@@ -2,6 +2,12 @@
 
 [![hackmd-github-sync-badge](https://hackmd.io/HdMEALKjTnSFF_d7QE3ESw/badge)](https://hackmd.io/HdMEALKjTnSFF_d7QE3ESw)
 
+For HackMD viewers, note that this documentation is synchronized from [GitHub](https://github.com/coding-ray/2023-ca-term-atom/blob/master/docs/readme.md) to HackMD.
+
+All the code related to this project is in the following two repositories.
+1. [coding-ray/2023-ca-term-atom](https://github.com/coding-ray/2023-ca-term-atom): All documentation related to this project goes here.
+1. [coding-ray/riscv-atom](https://github.com/coding-ray/riscv-atom): The implementation of the M extension for [saursin/riscv-atom](https://github.com/saursin/riscv-atom) goes here.
+
 This document consists of the following sections.
 
 1. [Environment setup](#Environment-Setup): Building and installing RISC-V GNU toolchain and RISC-V Atom in a Docker container.
