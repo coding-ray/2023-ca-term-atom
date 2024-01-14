@@ -118,12 +118,12 @@ Primary reference in this section: [A successful Git branching model » nvie.com
 <table>
    <tr>
       <td valign=top>
-         <img src="res/branch-dev-master.png"
+         <img src="https://i.imgur.com/9OMcEpp.png"
               alt="develop and master branches"
               width="60%"/>
       </td>
       <td valign=top>
-         <img src="res/branch-feat-dev.png"
+         <img src="https://i.imgur.com/KD0Jdza.png"
               alt="feature and develop branches"
               width="60%"/>
       </td>
