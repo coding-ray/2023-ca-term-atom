@@ -219,3 +219,17 @@ Primary reference: [Building RISC-V Atom — RISC-V Atom v1.2 documentation](htt
     ```shell
     make soctarget=atombones run-all
     ```
+
+## Collaboration on Both GitHub and HackMD
+
+With some changes on HackMD, to synchronize changes from HackMD to GitHub, do the following steps.
+1. Browse our [documentation on HackMD](https://hackmd.io/HdMEALKjTnSFF_d7QE3ESw). Desktop view of the HackMD page is easier to view than mobile view.
+1. On the top right corner, click `...`, and the select `Versions and GitHub Sync`.
+    ![Options in HackMD in which "Versions and GitHub Sync" is highlighted](res/hackmd-sync-options.png).
+1. On the top right corner of the popup window, click `Push`.
+    ![HackMD option to push to GitHub](res/hackmd-sync-push-to-github.png)
+1. Select a branch to commit changes. `develop` is more recommended than `master`.
+1. Enter proper commit title and message according to [docs/commit-convention.md](commit-convention.md) and the changes.
+
+To synchronize changes from GitHub to HackMD, follow the steps above, but click `Pull` instead in the popup window.
+![HackMD option to pull from GitHub](res/hackmd-sync-pull-from-github.png)
