@@ -242,14 +242,14 @@ With some changes on HackMD, to synchronize changes from HackMD to GitHub, do th
 
 1. Browse our [documentation on HackMD](https://hackmd.io/HdMEALKjTnSFF_d7QE3ESw). Desktop view of the HackMD page is easier to view than mobile view.
 1. On the top right corner, click `...`, and the select `Versions and GitHub Sync`.
-   ![Options in HackMD in which "Versions and GitHub Sync" is highlighted](res/hackmd-sync-options.png).
+   ![Options in HackMD in which "Versions and GitHub Sync" is highlighted](https://i.imgur.com/e8q5ktr.png).
 1. On the top right corner of the popup window, click `Push`.
-   ![HackMD option to push to GitHub](res/hackmd-sync-push-to-github.png)
+   ![HackMD option to push to GitHub](https://i.imgur.com/pVaCYQa.png)
 1. Select a branch to commit changes. `develop` is more recommended than `master`.
 1. Enter proper commit title and message according to [docs/commit-convention.md](commit-convention.md) and the changes.
 
 To synchronize changes from GitHub to HackMD, follow the steps above, but click `Pull` instead in the popup window.
-![HackMD option to pull from GitHub](res/hackmd-sync-pull-from-github.png)
+![HackMD option to pull from GitHub](https://i.imgur.com/MKy9z7O.png)
 
 ## Implementation of RV32M Instructions
 
@@ -259,7 +259,7 @@ To implement the M extension, specifically RV32M, in RISC-V Atom, we have to mod
 
 In pp. 35—37 of [RISC-V Instruction Set Manual v2.2](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf) (May 7, 2017), it defined the specification of the M extension, including the strategy to handle division by zero and division overflow.
 
-![Division by zero and overflow](res/hackmd-m-div-overflow.png)
+![Division by zero and overflow](https://i.imgur.com/Si9vz6y.png)
 
 ### Required Modification in `/rtl/core/Defs.vh`
 
@@ -300,7 +300,7 @@ To include instructions for the `M extension`, different ALU operations are repr
 ### Modify `Decode.v`
 
 The instructions in the image below pertain to the `M extension`, and they all fall under the R-type category. To enable the decoder to understand these instructions, refer to the machine code definitions in the table for the corresponding RTL code
-![image](https://hackmd.io/_uploads/rk5EFWWYa.png)
+![image](https://i.imgur.com/LnaYGBg.png)
 
 ```diff
 +            /* MUL   */
