@@ -1,27 +1,271 @@
 # Computer Architecture 2023: Term Project
 
-[![hackmd-github-sync-badge](https://hackmd.io/HdMEALKjTnSFF_d7QE3ESw/badge)](https://hackmd.io/HdMEALKjTnSFF_d7QE3ESw)
+<!-- This is a HackMD text block with slime green background-->
 
 :::success
-## **Goal**
-- [ ] 完成RISC-V Atom中所有examples的debug，確保所有example都能成功運行。這是首要目標，有助於驗證處理器的穩定性和正確性。
-- [ ] 使用Verilator對RISC-V Atom進行驗證，確保支援Dhrystone等專案。這有助於確保處理器在實際應用中的正常運作。
-- [ ] 嘗試實作RV32M指令集，並使用riscv-arch-test或riscv-tests進行全面的RV32I/RV32M指令測試，確保實作的指令集符合標準。
-- [ ] 詳細記錄整個過程，包括遇到的技術問題。可以透過GitHub提交issue，與原開發者討論問題。參與整個過程並最終貢獻RV32M或相關實作將是一個更有價值的結果。
+
+## Goal
+
+- [ ] Make all examples in RISC-V Atom pass. This is the primary goal. Without this, we cannot measure the stability and correctness of the simulator.
+- [ ] Verify RISC-V Atom with Verilator, and make sure it supports projects Dhrystone, etc. Verification ensures that the processors work faultlessly in real world.
+- [ ] Tye to implement the RV32M instructions, and utilize `riscv-arch-test` or `riscv-tests` to verify RV32I/RV32M instructions exhaustedly to ensure the ISA meets the standard.
+- [ ] Document all the progress in detail, including all encountered technical problems. You may want some discussion with the original developers with GitHub issues. Participate in the entire progress, and it is a more valuable outcome by eventually contributing the RV32M extension or some related implementations.
 
 :::
 
-## **Implement M extension**
+[![hackmd-github-sync-badge](https://hackmd.io/HdMEALKjTnSFF_d7QE3ESw/badge)](https://hackmd.io/HdMEALKjTnSFF_d7QE3ESw)
 
+For HackMD viewers, note that this documentation is synchronized between [GitHub](https://github.com/coding-ray/2023-ca-term-atom/blob/master/docs/readme.md) and HackMD.
 
-To implement `M extension` in `riscv-atom`, we have to change the rtl code in `riscv-atom/rtl/core`. In [RISCV Instruction Set Manual](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf), you can find the description of the M extension, including the strategy for handling division by zero and overflow.
+All the code related to this project is in the following two repositories.
 
-![image](https://hackmd.io/_uploads/B1bAlNxY6.png)
+1. [coding-ray/2023-ca-term-atom](https://github.com/coding-ray/2023-ca-term-atom): All documentation related to this project goes here.
+1. [coding-ray/riscv-atom](https://github.com/coding-ray/riscv-atom): The implementation of the M extension for [saursin/riscv-atom](https://github.com/saursin/riscv-atom) goes here.
 
-### Modify `Defs.vh` 
+This document consists of the following sections.
+
+1. [Environment setup](#Environment-Setup): Building and installing RISC-V GNU toolchain, and building RISC-V Atom in a Docker container.
+1. [To-do list](#To-do-List): Pending tasks.
+
+## Environment Setup
+
+In this section, we will guide you through the building and installation of RISC-V GNU toolchain and Verilator from source in a Docker container. After that, there will be the building procedure of RISC-V Atom. These steps are also verified to be applicable inside or outside a virtual machine.
+
+### Install Docker Engine
+
+Primary reference: [Install Docker Engine on Ubuntu | Docker Docs](https://docs.docker.com/engine/install/ubuntu/)
+
+Docker will be used to wrap the entire project in a container. The following steps apply to Ubuntu Jammy 22.04.3, but it should be easy to customize them in the other Debian-based distributions with bash as the shell.
+
+1. Uninstall all conflicting packages.
+   ```shell
+   for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
+     if [ ! -z "$(apt list --installed $pkg 2>&1 | grep installed)" ]; then
+       sudo apt purge -y $pkg;
+     else
+       echo "Not installed: $pkg"
+     fi
+   done
+   ```
+   One-line and simplified version: `echo docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc | xargs sudo apt purge y $p`
+1. Allow `apt` to fetch a repository over HTTPS.
+   ```shell
+   sudo apt update && sudo apt install -y ca-certificates curl gnupg
+   ```
+1. Add Docker’s official GPG key.
+   ```shell
+   sudo install -m 0755 -d /etc/apt/keyrings
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+     sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+   sudo chmod a+r /etc/apt/keyrings/docker.gpg
+   ```
+1. Set up the repository.
+   ```shell
+   echo \
+   "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+   "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   ```
+1. Install the latest Docker engine and Docker Compose.
+   ```shell
+   sudo apt update
+   sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+   ```
+1. Add the current user to the `docker` group to access Docker commands without `sudo`.
+   ```shell
+   sudo usermod -aG docker $USER
+   ```
+1. Re-login to take the effect, or enter `newgrp docker` to apply the changes in the current terminal.
+
+### Set up a Docker Container
+
+1. Launch an Ubuntu Jammy 22.04.3 container, with hostname `ca-term-ubuntu` (arbitrary) and container name `ca-term-ubuntu` (arbitrary) in the background (`-d` to detach from it, and `sleep infinity` to keep it running).
+   ```shell
+   docker run --rm -d \
+     --name ca-term-ubuntu \
+     --hostname ca-term-ubuntu \
+     ubuntu:jammy-20231211.1 \
+     sleep infinity
+   ```
+1. Attach to the container.
+   ```shell
+   docker exec -it ca-term-ubuntu /bin/bash
+   ```
+1. Un-minimize the environment, and install the `man` command and its docs.
+   ```shell
+   unminimize
+   apt update
+   apt install man-db
+   ```
+1. Set the time zone to Asia/Taipei. ([Reference: bash - apt-get install tzdata noninteractive - Stack Overflow](https://stackoverflow.com/a/44333806))
+   ```shell
+   ln -fs /usr/share/zoneinfo/Asia/Taipei /etc/localtime
+   echo Asia/Taipei > /etc/timezone
+   apt install -y tzdata
+   ```
+1. In the container, create a normal user `ray` (arbitrary) with password `0` (arbitrary) in group `sudo` (to use `sudo` as user `ray`). Note that the following commands are executed in the container as `root`.
+   ```shell
+   apt update
+   apt install -y sudo
+   useradd -m ray
+   chsh -s /bin/bash ray
+   echo "ray:0" | chpasswd
+   echo "root:0" | chpasswd
+   usermod -aG sudo ray
+   ```
+1. Leave the container, and login as `ray` (the same as previously created user).
+   ```shell
+   exit
+   docker exec -u ray -w /home/ray -it ca-term-ubuntu /bin/bash
+   ```
+1. Remove the login message, and remove the warning message from `sudo`. (Reference: [Giving yourself a quieter SSH login](https://web.archive.org/web/20200924150633/https://debian-administration.org/article/546/Giving_yourself_a_quieter_SSH_login))
+   ```shell
+   touch ~/.hushlogin ~/.sudo_as_admin_successful
+   ```
+1. In the future, to stop the container, run the following command. Docker will automatically remove the stopped container since we added `--rm` in `docker run` previously. To keep the content but stopping the container, remove `--rm` in `docker run`.
+   ```shell
+   docker stop ca-term-ubuntu
+   ```
+
+### Build and Install Verilator from Source
+
+1. Install the dependencies to build or run [Verilator](https://github.com/verilator/verilator) from source. Verilator will be used by Atomsim to Verilate Verilog RTL into C++. (Primary reference: [Installation — Verilator Devel 5.021 documentation](https://veripool.org/guide/latest/install.html#package-manager-quick-install))
+
+   ```shell
+   sudo apt install -y git help2man perl python3 make autoconf g++ flex bison ccache
+   sudo apt install -y libgoogle-perftools-dev numactl perl-doc
+
+   # Ubuntu only
+   sudo apt install libfl2 libfl-dev
+
+   # Ubuntu only (ignore since it gives error)
+   # sudo apt install zlibc zlib1g zlib1g-dev
+   ```
+
+1. Clone Verilator into `~/verilator`.
+   ```shell
+   git clone https://github.com/verilator/verilator ~/verilator
+   cd ~/verilator
+   ```
+1. Build Verilator from the `stable` branch.
+
+   ```shell
+   unset VERILATOR_ROOT
+   git pull        # get the latest content
+   git checkout stable
+
+   autoconf        # create ./configure script
+   ./configure     # configure and create Makefile
+   make -j `nproc`
+   make test       # make sure all tests passes before continuing
+   ```
+
+1. Install Verilator, and check its version.
+   ```shell
+   sudo make install
+   verilator --version
+   ```
+
+### Build and Install RISC-V GNU Toolchain from Source
+
+1. Compile and install RISC-V GNU toolchain from source, for we found the script `install-toolchain.sh` provided by RISC-V Atom is buggy. The `configure` command targets RV64GC with glibc by default, so `--with-arch=rv64gc` is redundant. The entire repo (with its submodules and compiled objects) takes around 14 GiB of disk space, so be aware of the free spaces on the disk. After you issue `time make`, take a break. It took me 45 minutes.
+
+   ```shell
+   git clone https://github.com/riscv/riscv-gnu-toolchain ~/toolchain
+   cd ~/toolchain
+
+   sudo apt install -y autoconf automake autotools-dev curl python3 python3-pip libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev ninja-build git cmake libglib2.0-dev
+
+   ./configure --prefix="$HOME/.local/share/riscv-gnu-toolchain" --enable-multilib
+   time make -j `nproc`
+   ```
+
+1. Add the binaries of the toolchain to PATH.
+   ```shell
+   echo "export PATH=\"\$HOME/.local/share/riscv-gnu-toolchain/bin:\$PATH\"" >> ~/.bashrc
+   source ~/.bashrc
+   ```
+1. Check the version of `gcc` in the toolchain.
+   ```shell
+   riscv64-unknown-elf-gcc --version
+   ```
+
+### Install the Other Dependencies of RISC-V Atom
+
+Primary reference: [riscv-collab/riscv-gnu-toolchain: GNU toolchain for RISC-V, including GCC](https://github.com/riscv-collab/riscv-gnu-toolchain)
+
+1. Install the dependencies to build or run RISC-V Atom. For more info about these packages, please check the official documentation provided above.
+   ```shell
+   sudo apt install -y git python3 build-essential gtkwave screen libreadline-dev
+   ```
+1. Install the required Python packages. This step is not documented, but without the packages in `requirements.txt`, we cannot build the AtomSim simulator.
+   ```shell
+   wget -O - https://raw.githubusercontent.com/saursin/riscv-atom/main/requirements.txt | xargs pip install
+   ```
+1. Add `~/.local/bin/` to path as the warning from `pip` instructs.
+   ```shell
+   echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+### Build RISC-V Atom
+
+Primary reference: [Building RISC-V Atom — RISC-V Atom v1.2 documentation](https://riscv-atom.readthedocs.io/en/latest/pages/getting_started/building.html)
+
+1. Clone RISC-V Atom into ~/riscv-atom.
+   ```shell
+   git clone https://github.com/saursin/riscv-atom.git ~/riscv-atom
+   cd ~/riscv-atom
+   ```
+1. Set the environment variables, and allow them to be automatically set on login.
+   ```shell
+   source sourceme
+   echo -e "# set environment variables for RISC-V Atom\nsource \"$(pwd)/sourceme\"" >> ~/.bashrc
+   ```
+1. Build the AtomSim simulator.
+   ```shell
+   make soctarget=atombones
+   ```
+1. Verify the build.
+   ```shell
+   which atomsim
+   atomsim --help
+   ```
+1. Run through all examples. (Fixme: failed on lots of tests)
+   ```shell
+   make soctarget=atombones run-all
+   ```
+
+## Collaboration on Both GitHub and HackMD
+
+With some changes on HackMD, to synchronize changes from HackMD to GitHub, do the following steps.
+
+1. Browse our [documentation on HackMD](https://hackmd.io/HdMEALKjTnSFF_d7QE3ESw). Desktop view of the HackMD page is easier to view than mobile view.
+1. On the top right corner, click `...`, and the select `Versions and GitHub Sync`.
+   ![Options in HackMD in which "Versions and GitHub Sync" is highlighted](https://i.imgur.com/e8q5ktr.png).
+1. On the top right corner of the popup window, click `Push`.
+   ![HackMD option to push to GitHub](https://i.imgur.com/pVaCYQa.png)
+1. Select a branch to commit changes. `develop` is more recommended than `master`.
+1. Enter proper commit title and message according to [docs/commit-convention.md](commit-convention.md) and the changes.
+
+To synchronize changes from GitHub to HackMD, follow the steps above, but click `Pull` instead in the popup window.
+![HackMD option to pull from GitHub](https://i.imgur.com/MKy9z7O.png)
+
+## Implementation of RV32M Instructions
+
+### Introduction
+
+To implement the M extension, specifically RV32M, in RISC-V Atom, we have to modify the core components of RISC-V Atom under `${REPO_ROOT}/rtl/core/`, where `${REPO_ROOT}` is the root directory of RISC-V Atom.
+
+In pp. 35—37 of [RISC-V Instruction Set Manual v2.2](https://riscv.org/wp-content/uploads/2017/05/riscv-spec-v2.2.pdf) (May 7, 2017), it defined the specification of the M extension, including the strategy to handle division by zero and division overflow.
+
+![Division by zero and overflow](https://i.imgur.com/Si9vz6y.png)
+
+### Required Modification in `/rtl/core/Defs.vh`
+
 To include instructions for the `M extension`, different ALU operations are represented with four bits in the definition.
 
-``` diff
+```diff
 // ALU
 -`define ALU_FUNC_ADD    3'd0
 -`define ALU_FUNC_SUB    3'd1
@@ -52,14 +296,11 @@ To include instructions for the `M extension`, different ALU operations are repr
 +`define ALU_FUNC_REMU   4'd15
 
 ```
-### Modify `Decode.v` 
 
-
+### Modify `Decode.v`
 
 The instructions in the image below pertain to the `M extension`, and they all fall under the R-type category. To enable the decoder to understand these instructions, refer to the machine code definitions in the table for the corresponding RTL code
-![image](https://hackmd.io/_uploads/rk5EFWWYa.png)
-
-
+![image](https://i.imgur.com/LnaYGBg.png)
 
 ```diff
 +            /* MUL   */
@@ -72,7 +313,7 @@ The instructions in the image below pertain to the `M extension`, and they all f
 +                b_op_sel_o = 1'b0;
 +                alu_op_sel_o = `ALU_FUNC_MUL;
 +            end
-+            
++
 +            /* MULH   */
 +            17'b0100001_001_0110011:
 +            begin
@@ -83,7 +324,7 @@ The instructions in the image below pertain to the `M extension`, and they all f
 +                b_op_sel_o = 1'b0;
 +                alu_op_sel_o = `ALU_FUNC_MULH;
 +            end
-+            
++
 +            /* MULHSU   */
 +            17'b0100001_010_0110011:
 +            begin
@@ -94,7 +335,7 @@ The instructions in the image below pertain to the `M extension`, and they all f
 +                b_op_sel_o = 1'b0;
 +                alu_op_sel_o = `ALU_FUNC_MULHSU;
 +            end
-+            
++
 +            /* MULHU   */
 +            17'b0100001_011_0110011:
 +            begin
@@ -105,7 +346,7 @@ The instructions in the image below pertain to the `M extension`, and they all f
 +                b_op_sel_o = 1'b0;
 +                alu_op_sel_o = `ALU_FUNC_MULHU;
 +            end
-+            
++
 +            /* DIV   */
 +            17'b0100001_100_0110011:
 +            begin
@@ -116,7 +357,7 @@ The instructions in the image below pertain to the `M extension`, and they all f
 +                b_op_sel_o = 1'b0;
 +                alu_op_sel_o = `ALU_FUNC_DIV;
 +            end
-+            
++
 +            /* DIVU   */
 +            17'b0100001_101_0110011:
 +            begin
@@ -127,7 +368,7 @@ The instructions in the image below pertain to the `M extension`, and they all f
 +                b_op_sel_o = 1'b0;
 +                alu_op_sel_o = `ALU_FUNC_DIVU;
 +            end
-+            
++
 +            /* REM   */
 +            17'b0100001_110_0110011:
 +            begin
@@ -138,7 +379,7 @@ The instructions in the image below pertain to the `M extension`, and they all f
 +                b_op_sel_o = 1'b0;
 +                alu_op_sel_o = `ALU_FUNC_REM;
 +            end
-+            
++
 +            /* REMU   */
 +            17'b0100001_111_0110011:
 +            begin
@@ -150,18 +391,22 @@ The instructions in the image below pertain to the `M extension`, and they all f
 +                alu_op_sel_o = `ALU_FUNC_REMU;
 +            end
 ```
+
 Also, change the `alu_op_sel` due to the adding one bit in `Defs.vh`
+
 ```diff=
 -output reg [2:0] alu_op_sel_o,
 +output reg [3:0] alu_op_sel_o,
 ```
+
 ### Modify `AtomRV.v`
 
 change the wire `d-alu_op_sel` to 4 bit.
+
 ```diff
         ////// Instruction Decode //////
-        Instruction decode unit decodes instruction and sets various control 
-        signals throughout the pipeline. Is also extracts immediate values 
+        Instruction decode unit decodes instruction and sets various control
+        signals throughout the pipeline. Is also extracts immediate values
         from instructions and sign extends them properly.
     */
     wire    [4:0]   d_rd_sel;
@@ -185,10 +430,7 @@ change the wire `d-alu_op_sel` to 4 bit.
 
 ```
 
-
-
-
-### Modify `alu.v` 
+### Modify `alu.v`
 
 Modify the input wire `sel_i` to be 4 bits and then integrate the circuitry to execute each instruction in the `M extension`
 
@@ -226,7 +468,7 @@ Modify the input wire `sel_i` to be 4 bits and then integrate the circuitry to e
 +        else if (sel_mulh)
 +            mul_result = $signed(a_i) * $signed(b_i);
 +        else
-+            mul_result= 64'h0  ;  
++            mul_result= 64'h0  ;
 +    end
 +    //div divu
 +    always @(*) begin
@@ -251,7 +493,7 @@ Modify the input wire `sel_i` to be 4 bits and then integrate the circuitry to e
 +            		  $unsigned($unsigned(a_i) % $unsigned(b_i));
 +        else
 +            rem_result= 32'h0;
-+    end   
++    end
 
 
     // output of universal shifter
@@ -262,7 +504,7 @@ Modify the input wire `sel_i` to be 4 bits and then integrate the circuitry to e
         else
             final_shift_output = shift_output[31:0];
     end
-    
+
     // Final output mux
     always @(*) begin
         if (sel_add | sel_sub)
@@ -285,9 +527,9 @@ Modify the input wire `sel_i` to be 4 bits and then integrate the circuitry to e
 +            result_o = rem_result;
         else
             result_o = arith_result;
-    end        
+    end
 ```
 
+## References
 
-## Reference
-* 
+-
